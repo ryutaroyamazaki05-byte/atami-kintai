@@ -1,0 +1,1985 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>熱海観光局 勤怠管理システム</title>
+
+<!-- CDNライブラリ読み込み -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/locale/ja.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/duration.js"></script>
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+/* ===== CSS変数・テーマ定義 ===== */
+:root {
+  --ocean: #0A4B6E;       /* 熱海の海 */
+  --ocean-mid: #1A6B99;
+  --ocean-light: #3A9BC4;
+  --ocean-pale: #E8F4FA;
+  --coral: #E8503A;       /* 熱海の朱 */
+  --coral-light: #FF7A68;
+  --sand: #F5EFE3;        /* 砂浜 */
+  --sand-dark: #E8DCC8;
+  --stone: #4A5568;       /* 石畳 */
+  --stone-light: #718096;
+  --stone-pale: #EDF2F7;
+  --green: #2D8A4E;       /* 梅の葉 */
+  --green-light: #48BB78;
+  --amber: #D97706;
+  --white: #FFFFFF;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06);
+  --shadow-lg: 0 10px 40px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 20px;
+}
+
+/* ===== リセット・基本スタイル ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; }
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--sand);
+  color: var(--stone);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+/* ===== ヘッダー ===== */
+.app-header {
+  background: linear-gradient(135deg, var(--ocean) 0%, var(--ocean-mid) 60%, var(--ocean-light) 100%);
+  color: white;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow-md);
+}
+.app-header h1 {
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.app-header h1 .logo-icon {
+  width: 32px; height: 32px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem;
+}
+.header-clock {
+  font-size: 0.85rem;
+  opacity: 0.9;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  text-align: right;
+}
+.header-clock .time { font-size: 1.4rem; font-weight: 700; display: block; }
+
+/* ===== ナビゲーションタブ ===== */
+.nav-tabs {
+  background: var(--white);
+  border-bottom: 2px solid var(--sand-dark);
+  display: flex;
+  padding: 0 24px;
+  gap: 4px;
+  position: sticky;
+  top: 64px;
+  z-index: 99;
+  box-shadow: var(--shadow-sm);
+}
+.nav-tab {
+  padding: 14px 20px 12px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--stone-light);
+  cursor: pointer;
+  border: none;
+  background: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+  display: flex; align-items: center; gap: 6px;
+  white-space: nowrap;
+}
+.nav-tab:hover { color: var(--ocean-mid); }
+.nav-tab.active {
+  color: var(--ocean);
+  border-bottom-color: var(--ocean);
+  font-weight: 700;
+}
+.tab-icon { font-size: 1rem; }
+
+/* ===== メインコンテンツ ===== */
+.main-content { padding: 24px; max-width: 1200px; margin: 0 auto; }
+
+/* ===== タブパネル ===== */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ===== カードコンポーネント ===== */
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.card-title {
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ocean);
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--stone-pale);
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title .icon { font-size: 1.1rem; }
+
+/* ===== グリッドレイアウト ===== */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+/* ===== ===== ===== タブ1：打刻 ===== ===== ===== */
+
+/* 今日の概要バー */
+.today-bar {
+  background: linear-gradient(90deg, var(--ocean) 0%, var(--ocean-mid) 100%);
+  color: white;
+  border-radius: var(--radius);
+  padding: 16px 24px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-md);
+}
+.today-date { font-size: 1rem; font-weight: 500; opacity: 0.9; }
+.today-date strong { display: block; font-size: 1.3rem; font-weight: 700; opacity: 1; }
+
+/* 従業員カード */
+.employee-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.emp-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 18px;
+  transition: box-shadow 0.2s;
+  border-left: 4px solid var(--stone-pale);
+}
+.emp-card:hover { box-shadow: var(--shadow-md); }
+.emp-card.status-in { border-left-color: var(--green); }
+.emp-card.status-out { border-left-color: var(--ocean-light); }
+.emp-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.emp-avatar {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--ocean-pale), var(--ocean-light));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; font-weight: 700;
+  color: var(--ocean);
+  flex-shrink: 0;
+}
+.emp-name { font-weight: 700; font-size: 0.95rem; }
+.emp-role { font-size: 0.78rem; color: var(--stone-light); margin-top: 1px; }
+.emp-status {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.03em;
+}
+.emp-status.in-office { background: #DCFCE7; color: #166534; }
+.emp-status.out-office { background: var(--stone-pale); color: var(--stone-light); }
+.emp-status.on-leave { background: #FEF3C7; color: #92400E; }
+
+/* 打刻ボタン */
+.punch-buttons { display: flex; gap: 8px; }
+.btn-punch {
+  flex: 1;
+  padding: 10px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.03em;
+}
+.btn-punch-in {
+  background: var(--green);
+  color: white;
+}
+.btn-punch-in:hover:not(:disabled) { background: #1F6B3A; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(45,138,78,0.4); }
+.btn-punch-out {
+  background: var(--coral);
+  color: white;
+}
+.btn-punch-out:hover:not(:disabled) { background: #C04030; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(232,80,58,0.4); }
+.btn-punch:disabled { opacity: 0.35; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
+/* 打刻時刻表示 */
+.emp-times {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.emp-time-item {
+  flex: 1;
+  background: var(--stone-pale);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 0.78rem;
+}
+.emp-time-label { color: var(--stone-light); font-size: 0.72rem; margin-bottom: 2px; }
+.emp-time-val { font-weight: 700; font-size: 0.9rem; color: var(--stone); }
+.emp-time-val.green { color: var(--green); }
+.emp-time-val.coral { color: var(--coral); }
+
+/* 打刻ログ */
+.punch-log {
+  max-height: 320px;
+  overflow-y: auto;
+}
+.punch-log-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--stone-pale);
+  font-size: 0.84rem;
+  gap: 12px;
+}
+.punch-log-item:last-child { border-bottom: none; }
+.punch-badge {
+  font-size: 0.70rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.punch-badge.in { background: #DCFCE7; color: #166534; }
+.punch-badge.out { background: #FEE2E2; color: #991B1B; }
+.punch-log-name { font-weight: 600; min-width: 80px; }
+.punch-log-date { color: var(--stone-light); font-size: 0.78rem; }
+.punch-log-time { font-weight: 700; color: var(--ocean); margin-left: auto; }
+
+/* ===== ===== ===== タブ2：シフト ===== ===== ===== */
+
+/* シフトパターン定義 */
+.shift-patterns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.shift-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.shift-badge:hover { transform: scale(1.05); }
+.shift-badge.early { background: #FEF3C7; color: #92400E; }
+.shift-badge.day   { background: #DCFCE7; color: #166534; }
+.shift-badge.late  { background: #E0E7FF; color: #3730A3; }
+.shift-badge.off   { background: var(--stone-pale); color: var(--stone-light); }
+.shift-badge.half  { background: #FCE7F3; color: #9D174D; }
+
+/* シフトカレンダー */
+.shift-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.shift-calendar-title { font-family: 'Zen Kaku Gothic New', sans-serif; font-weight: 700; font-size: 1.05rem; color: var(--ocean); }
+.btn-nav {
+  background: none;
+  border: 1px solid var(--sand-dark);
+  border-radius: var(--radius-sm);
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--stone);
+  transition: all 0.15s;
+}
+.btn-nav:hover { background: var(--ocean); color: white; border-color: var(--ocean); }
+
+.shift-table-wrapper { overflow-x: auto; }
+.shift-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  min-width: 700px;
+}
+.shift-table th {
+  background: var(--ocean);
+  color: white;
+  padding: 10px 8px;
+  text-align: center;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.shift-table th.name-col { min-width: 100px; text-align: left; padding-left: 14px; }
+.shift-table th.day-col { min-width: 80px; }
+.shift-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--stone-pale);
+  text-align: center;
+  vertical-align: middle;
+}
+.shift-table td.name-cell {
+  text-align: left;
+  padding-left: 14px;
+  font-weight: 600;
+  color: var(--ocean);
+  background: var(--ocean-pale);
+}
+.shift-table tr:hover td { background-color: #FAFBFF; }
+.shift-table tr:hover td.name-cell { background-color: var(--ocean-pale); }
+
+/* シフトセルセレクト */
+.shift-select {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  transition: all 0.15s;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.shift-select:focus { outline: 2px solid var(--ocean-light); }
+.shift-select[data-val="早番"] { background: #FEF3C7; color: #92400E; border-color: #F59E0B; }
+.shift-select[data-val="日勤"] { background: #DCFCE7; color: #166534; border-color: #10B981; }
+.shift-select[data-val="遅番"] { background: #E0E7FF; color: #3730A3; border-color: #6366F1; }
+.shift-select[data-val="休日"] { background: var(--stone-pale); color: var(--stone-light); border-color: #CBD5E0; }
+.shift-select[data-val="半休"] { background: #FCE7F3; color: #9D174D; border-color: #EC4899; }
+.shift-select[data-val="有休"] { background: #FEF9C3; color: #713F12; border-color: #EAB308; }
+.shift-select[data-val=""] { background: white; color: var(--stone-light); border-color: var(--sand-dark); }
+
+/* 乖離表示 */
+.deviation-actual { font-size: 0.7rem; margin-top: 2px; color: var(--stone-light); }
+.deviation-match { font-size: 0.7rem; color: var(--green); }
+.deviation-mismatch { font-size: 0.7rem; color: var(--coral); font-weight: 700; }
+
+/* ===== ===== ===== タブ3：レポート ===== ===== ===== */
+
+/* サマリーカード */
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.summary-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 18px 16px;
+  text-align: center;
+}
+.summary-card .sc-label { font-size: 0.75rem; color: var(--stone-light); margin-bottom: 6px; }
+.summary-card .sc-value { font-size: 1.8rem; font-weight: 700; font-family: 'Zen Kaku Gothic New', sans-serif; color: var(--ocean); line-height: 1; }
+.summary-card .sc-unit { font-size: 0.75rem; color: var(--stone-light); margin-top: 4px; }
+.summary-card.highlight { background: var(--ocean); }
+.summary-card.highlight .sc-label { color: rgba(255,255,255,0.7); }
+.summary-card.highlight .sc-value { color: white; }
+.summary-card.highlight .sc-unit { color: rgba(255,255,255,0.7); }
+.summary-card.warn { background: #FFF7ED; border: 1px solid #FED7AA; }
+.summary-card.warn .sc-value { color: var(--amber); }
+
+/* チャートエリア */
+.chart-row { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
+.chart-container { position: relative; }
+canvas { max-width: 100%; }
+
+/* 月別テーブル */
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.83rem;
+}
+.report-table th {
+  background: var(--ocean);
+  color: white;
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+}
+.report-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--stone-pale);
+}
+.report-table tr:hover td { background: var(--ocean-pale); }
+.report-table .overtime { color: var(--coral); font-weight: 700; }
+.report-table .normal { color: var(--green); font-weight: 700; }
+
+/* エクスポートボタン */
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--green);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px 20px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 0.87rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.03em;
+}
+.btn-export:hover { background: #1F6B3A; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(45,138,78,0.4); }
+
+/* レポート月選択 */
+.report-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.report-controls select, .report-controls input {
+  border: 1px solid var(--sand-dark);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 0.87rem;
+  color: var(--stone);
+  background: white;
+}
+.report-controls select:focus, .report-controls input:focus {
+  outline: 2px solid var(--ocean-light);
+}
+
+/* ===== ===== ===== タブ4：設定 ===== ===== ===== */
+
+.settings-section { margin-bottom: 24px; }
+.settings-label { font-size: 0.82rem; color: var(--stone-light); font-weight: 600; margin-bottom: 6px; letter-spacing: 0.03em; display: block; }
+.settings-input {
+  width: 100%;
+  border: 1px solid var(--sand-dark);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 0.9rem;
+  color: var(--stone);
+  background: white;
+  transition: border-color 0.15s;
+}
+.settings-input:focus { outline: none; border-color: var(--ocean-light); box-shadow: 0 0 0 3px rgba(58,155,196,0.15); }
+
+/* 従業員リスト管理 */
+.emp-list-manage { display: flex; flex-direction: column; gap: 8px; }
+.emp-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--stone-pale);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+.emp-list-item input {
+  border: 1px solid var(--sand-dark);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 0.87rem;
+  flex: 1;
+}
+.emp-list-item input:focus { outline: none; border-color: var(--ocean-light); }
+.btn-remove {
+  background: none;
+  border: none;
+  color: var(--coral);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.btn-remove:hover { background: #FEE2E2; }
+.btn-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--ocean-pale);
+  color: var(--ocean);
+  border: 1px dashed var(--ocean-light);
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-add:hover { background: var(--ocean); color: white; border-style: solid; }
+
+/* 休暇管理テーブル */
+.leave-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.leave-table th {
+  background: var(--stone-pale);
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--stone);
+  border-bottom: 2px solid var(--sand-dark);
+}
+.leave-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--stone-pale);
+}
+.leave-table input[type="number"] {
+  width: 70px;
+  border: 1px solid var(--sand-dark);
+  border-radius: 6px;
+  padding: 4px 8px;
+  text-align: center;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 0.87rem;
+}
+.leave-table input[type="number"]:focus { outline: none; border-color: var(--ocean-light); }
+.leave-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--stone-pale);
+  overflow: hidden;
+  width: 120px;
+  display: inline-block;
+  vertical-align: middle;
+}
+.leave-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--ocean), var(--ocean-light));
+  transition: width 0.4s;
+}
+.leave-bar-fill.warn { background: linear-gradient(90deg, var(--amber), #FBBF24); }
+
+/* 設定保存ボタン */
+.btn-save {
+  background: var(--ocean);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 11px 28px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.04em;
+}
+.btn-save:hover { background: var(--ocean-mid); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(10,75,110,0.4); }
+
+/* ===== トースト通知 ===== */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  background: var(--ocean);
+  color: white;
+  padding: 12px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 0.87rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-lg);
+  animation: slideIn 0.25s ease-out;
+  max-width: 320px;
+}
+.toast.success { background: var(--green); }
+.toast.error   { background: var(--coral); }
+.toast.warn    { background: var(--amber); }
+@keyframes slideIn {
+  from { transform: translateX(40px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* ===== モーダル ===== */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: var(--shadow-lg);
+  animation: modalIn 0.2s ease-out;
+}
+@keyframes modalIn {
+  from { transform: scale(0.95) translateY(10px); opacity: 0; }
+  to   { transform: scale(1)    translateY(0);    opacity: 1; }
+}
+.modal-title { font-family: 'Zen Kaku Gothic New', sans-serif; font-weight: 700; font-size: 1.05rem; color: var(--ocean); margin-bottom: 20px; }
+.modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+.btn-cancel {
+  background: var(--stone-pale);
+  color: var(--stone);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 9px 20px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 0.87rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ===== セクションヘッダー ===== */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.section-title {
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ocean);
+}
+
+/* ===== ユーティリティ ===== */
+.text-muted { color: var(--stone-light); font-size: 0.82rem; }
+.text-center { text-align: center; }
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mb-12 { margin-bottom: 12px; }
+.flex { display: flex; }
+.items-center { align-items: center; }
+.gap-8 { gap: 8px; }
+.divider { border: none; border-top: 1px solid var(--stone-pale); margin: 20px 0; }
+
+/* ===== レスポンシブ ===== */
+@media (max-width: 768px) {
+  .main-content { padding: 16px; }
+  .grid-2, .chart-row { grid-template-columns: 1fr; }
+  .grid-3, .grid-4 { grid-template-columns: 1fr 1fr; }
+  .nav-tab { padding: 12px 12px 10px; font-size: 0.8rem; }
+  .employee-grid { grid-template-columns: 1fr; }
+}
+
+/* スクロールバー */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--stone-pale); }
+::-webkit-scrollbar-thumb { background: var(--ocean-light); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ===== ヘッダー ===== -->
+<header class="app-header">
+  <h1>
+    <span class="logo-icon">🌊</span>
+    熱海観光局 勤怠管理システム
+  </h1>
+  <div class="header-clock">
+    <span class="time" id="headerTime">--:--:--</span>
+    <span id="headerDate">----年--月--日</span>
+  </div>
+</header>
+
+<!-- ===== ナビゲーションタブ ===== -->
+<nav class="nav-tabs">
+  <button class="nav-tab active" data-tab="tab-punch">
+    <span class="tab-icon">⏱️</span> 出退勤打刻
+  </button>
+  <button class="nav-tab" data-tab="tab-shift">
+    <span class="tab-icon">📅</span> シフト管理
+  </button>
+  <button class="nav-tab" data-tab="tab-report">
+    <span class="tab-icon">📊</span> 月次レポート
+  </button>
+  <button class="nav-tab" data-tab="tab-settings">
+    <span class="tab-icon">⚙️</span> 設定・休暇
+  </button>
+</nav>
+
+<!-- ===== メインコンテンツ ===== -->
+<main class="main-content">
+
+  <!-- ========== タブ1：出退勤打刻 ========== -->
+  <div class="tab-panel active" id="tab-punch">
+
+    <!-- 今日の概要 -->
+    <div class="today-bar">
+      <div>
+        <div class="today-date">本日の出勤状況</div>
+        <div class="today-date"><strong id="todayDateLarge">---</strong></div>
+      </div>
+      <div style="text-align:right;">
+        <div class="text-muted" style="color:rgba(255,255,255,0.75); font-size:0.82rem;">出勤中</div>
+        <div style="font-size:1.6rem; font-weight:700;" id="attendanceCount">0 / 0 名</div>
+      </div>
+    </div>
+
+    <!-- 従業員打刻カード -->
+    <div class="section-header">
+      <div class="section-title">👤 従業員別打刻</div>
+    </div>
+    <div class="employee-grid" id="employeeGrid">
+      <!-- JSで動的生成 -->
+    </div>
+
+    <!-- 今日の打刻ログ -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📋</span>本日の打刻ログ</div>
+      <div class="punch-log" id="punchLog">
+        <div class="text-center text-muted" style="padding:20px;">本日の打刻記録はありません</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ========== タブ2：シフト管理 ========== -->
+  <div class="tab-panel" id="tab-shift">
+
+    <!-- シフトパターン凡例 -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🏷️</span>シフトパターン</div>
+      <div class="shift-patterns">
+        <span class="shift-badge early">🌅 早番 <small>07:00〜16:00</small></span>
+        <span class="shift-badge day">☀️ 日勤 <small>09:00〜18:00</small></span>
+        <span class="shift-badge late">🌙 遅番 <small>11:00〜20:00</small></span>
+        <span class="shift-badge half">🌗 半休 <small>半日勤務</small></span>
+        <span class="shift-badge off" style="background:#FEE2E2; color:#991B1B;">🏖️ 有休</span>
+        <span class="shift-badge off">⛅ 休日</span>
+      </div>
+    </div>
+
+    <!-- シフトカレンダー -->
+    <div class="card">
+      <div class="shift-calendar-header">
+        <button class="btn-nav" id="shiftPrevWeek">◀ 前の週</button>
+        <div class="shift-calendar-title" id="shiftWeekLabel">---</div>
+        <button class="btn-nav" id="shiftNextWeek">次の週 ▶</button>
+      </div>
+      <div class="shift-table-wrapper">
+        <table class="shift-table" id="shiftTable">
+          <!-- JSで動的生成 -->
+        </table>
+      </div>
+      <div class="mt-12" style="text-align:right;">
+        <button class="btn-save" onclick="saveShifts()">💾 シフトを保存</button>
+      </div>
+      <div class="mt-8">
+        <div class="flex gap-8 items-center" style="flex-wrap:wrap; margin-top:12px;">
+          <span style="font-size:0.78rem; color:var(--stone-light);">凡例：</span>
+          <span style="font-size:0.75rem; display:flex; align-items:center; gap:4px;"><span style="color:var(--green);">✓</span> 予定通り</span>
+          <span style="font-size:0.75rem; display:flex; align-items:center; gap:4px;"><span style="color:var(--coral);">！</span> シフト乖離あり</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ========== タブ3：月次レポート ========== -->
+  <div class="tab-panel" id="tab-report">
+
+    <!-- 月選択・操作 -->
+    <div class="report-controls">
+      <select id="reportEmployee" onchange="renderReport()">
+        <option value="all">全員合算</option>
+      </select>
+      <input type="month" id="reportMonth" onchange="renderReport()">
+      <button class="btn-export" onclick="exportCSV()">📥 CSVエクスポート</button>
+    </div>
+
+    <!-- サマリーカード -->
+    <div class="summary-cards" id="summaryCards">
+      <!-- JSで動的生成 -->
+    </div>
+
+    <!-- チャートエリア -->
+    <div class="chart-row">
+      <div class="card">
+        <div class="card-title"><span class="icon">📊</span>日別労働時間（棒グラフ）</div>
+        <div class="chart-container" style="height:240px;">
+          <canvas id="barChart"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="icon">🥧</span>時間内訳（円グラフ）</div>
+        <div class="chart-container" style="height:240px;">
+          <canvas id="pieChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- 月別明細テーブル -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📋</span>日別明細</div>
+      <div style="overflow-x:auto;">
+        <table class="report-table" id="reportTable">
+          <thead>
+            <tr>
+              <th>日付</th>
+              <th>従業員名</th>
+              <th>出勤時刻</th>
+              <th>退勤時刻</th>
+              <th>労働時間</th>
+              <th>残業時間</th>
+              <th>区分</th>
+            </tr>
+          </thead>
+          <tbody id="reportTableBody">
+            <tr><td colspan="7" class="text-center text-muted" style="padding:20px;">データがありません</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 月別残業サマリー（従業員別） -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📈</span>当月残業累計（従業員別）</div>
+      <div class="chart-container" style="height:260px;">
+        <canvas id="overtimeChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ========== タブ4：設定・休暇 ========== -->
+  <div class="tab-panel" id="tab-settings">
+
+    <div class="grid-2">
+
+      <!-- 基本設定 -->
+      <div>
+        <div class="card">
+          <div class="card-title"><span class="icon">🏢</span>基本設定</div>
+          <div class="settings-section">
+            <label class="settings-label">組織名</label>
+            <input type="text" class="settings-input" id="orgName" value="一般財団法人 熱海観光局">
+          </div>
+          <div class="settings-section">
+            <label class="settings-label">所定労働時間（時間/日）</label>
+            <input type="number" class="settings-input" id="workHoursPerDay" value="8" min="1" max="12" step="0.5">
+          </div>
+          <div class="settings-section">
+            <label class="settings-label">勤務開始時刻（デフォルト）</label>
+            <input type="time" class="settings-input" id="defaultStartTime" value="09:00">
+          </div>
+          <button class="btn-save" onclick="saveSettings()">💾 設定を保存</button>
+        </div>
+
+        <!-- 従業員管理 -->
+        <div class="card">
+          <div class="card-title"><span class="icon">👥</span>従業員管理</div>
+          <div class="emp-list-manage" id="empListManage">
+            <!-- JSで動的生成 -->
+          </div>
+          <div class="mt-12">
+            <button class="btn-add" onclick="addEmployee()">＋ 従業員を追加</button>
+          </div>
+          <div class="mt-12" style="text-align:right;">
+            <button class="btn-save" onclick="saveEmployees()">💾 従業員を保存</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 休暇管理 -->
+      <div>
+        <div class="card">
+          <div class="card-title"><span class="icon">🏖️</span>休暇残日数管理</div>
+          <div style="overflow-x:auto;">
+            <table class="leave-table" id="leaveTable">
+              <thead>
+                <tr>
+                  <th>従業員名</th>
+                  <th>有給残日数</th>
+                  <th>特別休暇残日数</th>
+                  <th>取得状況</th>
+                </tr>
+              </thead>
+              <tbody id="leaveTableBody">
+                <!-- JSで動的生成 -->
+              </tbody>
+            </table>
+          </div>
+          <div class="mt-12" style="text-align:right;">
+            <button class="btn-save" onclick="saveLeaveData()">💾 休暇情報を保存</button>
+          </div>
+        </div>
+
+        <!-- 休暇申請ログ -->
+        <div class="card">
+          <div class="card-title"><span class="icon">📝</span>休暇申請・記録</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
+            <div>
+              <label class="settings-label">従業員</label>
+              <select class="settings-input" id="leaveEmpSelect" style="padding:9px 12px;">
+                <!-- JSで動的生成 -->
+              </select>
+            </div>
+            <div>
+              <label class="settings-label">休暇種別</label>
+              <select class="settings-input" id="leaveType" style="padding:9px 12px;">
+                <option value="paid">有給休暇</option>
+                <option value="special">特別休暇</option>
+              </select>
+            </div>
+            <div>
+              <label class="settings-label">開始日</label>
+              <input type="date" class="settings-input" id="leaveStart">
+            </div>
+            <div>
+              <label class="settings-label">終了日</label>
+              <input type="date" class="settings-input" id="leaveEnd">
+            </div>
+          </div>
+          <button class="btn-save" onclick="applyLeave()">📝 休暇を申請</button>
+          <hr class="divider">
+          <div id="leaveLog" style="max-height:200px; overflow-y:auto;">
+            <div class="text-muted text-center" style="padding:16px;">申請履歴はありません</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ===== トースト通知コンテナ ===== -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ===== JavaScript ===== -->
+<script>
+// ================================================
+// Day.jsの設定
+// ================================================
+dayjs.locale('ja');
+dayjs.extend(dayjs_plugin_duration);
+
+// ================================================
+// アプリケーション定数
+// ================================================
+const STORAGE_KEYS = {
+  EMPLOYEES   : 'atami_employees',
+  SETTINGS    : 'atami_settings',
+  PUNCH_RECORDS : 'atami_punch_records',
+  SHIFTS      : 'atami_shifts',
+  LEAVE_DATA  : 'atami_leave_data',
+  LEAVE_LOG   : 'atami_leave_log',
+};
+
+// 曜日ラベル（日本語）
+const WEEKDAYS_JA = ['日', '月', '火', '水', '木', '金', '土'];
+
+// シフトパターン定義
+const SHIFT_PATTERNS = ['', '早番', '日勤', '遅番', '半休', '有休', '休日'];
+
+// シフトパターンの時刻マッピング
+const SHIFT_HOURS = {
+  '早番': 8, '日勤': 8, '遅番': 8, '半休': 4,
+  '有休': 0, '休日': 0, '': 0
+};
+
+// ================================================
+// デフォルトデータ初期化
+// ================================================
+function initDefaultData() {
+  // デフォルト従業員データ（10名）
+  if (!localStorage.getItem(STORAGE_KEYS.EMPLOYEES)) {
+    const defaultEmployees = [
+      { id: 1, name: '田中 美咲',   role: '観光プランナー' },
+      { id: 2, name: '鈴木 健一',   role: 'DMO推進担当' },
+      { id: 3, name: '山田 花子',   role: 'インバウンド担当' },
+      { id: 4, name: '伊藤 大輔',   role: '地域連携担当' },
+      { id: 5, name: '渡辺 理恵',   role: 'デジタルマーケ' },
+      { id: 6, name: '中村 隆司',   role: '宿泊施設担当' },
+      { id: 7, name: '小林 由美',   role: '飲食・物産担当' },
+      { id: 8, name: '加藤 誠',     role: '事業企画担当' },
+      { id: 9, name: '佐藤 亜季',   role: 'PR・広報担当' },
+      { id: 10, name: '松本 浩二',  role: '総務・経理' },
+    ];
+    localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(defaultEmployees));
+  }
+
+  // デフォルト設定
+  if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
+    const defaultSettings = {
+      orgName: '一般財団法人 熱海観光局',
+      workHoursPerDay: 8,
+      defaultStartTime: '09:00',
+    };
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(defaultSettings));
+  }
+
+  // デフォルト休暇残日数
+  if (!localStorage.getItem(STORAGE_KEYS.LEAVE_DATA)) {
+    const employees = getEmployees();
+    const leaveData = {};
+    employees.forEach(emp => {
+      leaveData[emp.id] = { paid: 20, special: 5 };
+    });
+    localStorage.setItem(STORAGE_KEYS.LEAVE_DATA, JSON.stringify(leaveData));
+  }
+}
+
+// ================================================
+// データ取得ヘルパー関数
+// ================================================
+const getEmployees    = () => JSON.parse(localStorage.getItem(STORAGE_KEYS.EMPLOYEES)    || '[]');
+const getSettings     = () => JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS)     || '{}');
+const getPunchRecords = () => JSON.parse(localStorage.getItem(STORAGE_KEYS.PUNCH_RECORDS) || '{}');
+const getShifts       = () => JSON.parse(localStorage.getItem(STORAGE_KEYS.SHIFTS)       || '{}');
+const getLeaveData    = () => JSON.parse(localStorage.getItem(STORAGE_KEYS.LEAVE_DATA)   || '{}');
+const getLeaveLog     = () => JSON.parse(localStorage.getItem(STORAGE_KEYS.LEAVE_LOG)    || '[]');
+
+// ================================================
+// 日付フォーマット関数
+// ================================================
+// YYYY年MM月DD日（曜日）形式
+function formatDateJA(date) {
+  const d = dayjs(date);
+  const wd = WEEKDAYS_JA[d.day()];
+  return d.format(`YYYY年MM月DD日（${wd}）`);
+}
+
+// HH:mm形式
+function formatTime(date) {
+  return dayjs(date).format('HH:mm');
+}
+
+// HH:mm:ss形式
+function formatTimeSec(date) {
+  return dayjs(date).format('HH:mm:ss');
+}
+
+// 分→時間表示（例：90分 → 1時間30分）
+function formatMinutes(totalMin) {
+  if (totalMin <= 0) return '0分';
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h === 0) return `${m}分`;
+  if (m === 0) return `${h}時間`;
+  return `${h}時間${m}分`;
+}
+
+// 2点間の分数差を計算
+function diffMinutes(startISO, endISO) {
+  return dayjs(endISO).diff(dayjs(startISO), 'minute');
+}
+
+// ================================================
+// トースト通知
+// ================================================
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.3s';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+// ================================================
+// リアルタイム時計
+// ================================================
+function updateClock() {
+  const now = dayjs();
+  document.getElementById('headerTime').textContent  = now.format('HH:mm:ss');
+  document.getElementById('headerDate').textContent  = now.format('YYYY年MM月DD日');
+  document.getElementById('todayDateLarge').textContent = formatDateJA(now);
+}
+
+// ================================================
+// タブ切り替え処理
+// ================================================
+function initTabs() {
+  document.querySelectorAll('.nav-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      // アクティブタブ切り替え
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(tab.dataset.tab).classList.add('active');
+
+      // 各タブの再描画
+      const tabId = tab.dataset.tab;
+      if (tabId === 'tab-punch')    renderPunchTab();
+      if (tabId === 'tab-shift')    renderShiftTab();
+      if (tabId === 'tab-report')   renderReport();
+      if (tabId === 'tab-settings') renderSettingsTab();
+    });
+  });
+}
+
+// ================================================
+// ===== タブ1：出退勤打刻 =====
+// ================================================
+
+// 従業員カードを描画
+function renderPunchTab() {
+  const employees   = getEmployees();
+  const records     = getPunchRecords();
+  const today       = dayjs().format('YYYY-MM-DD');
+  const grid        = document.getElementById('employeeGrid');
+  const leaveData   = getLeaveData();
+  const leaveLog    = getLeaveLog();
+
+  // 本日休暇取得者を確認
+  const todayISO = today;
+  const onLeaveToday = new Set(
+    leaveLog
+      .filter(l => l.start <= todayISO && l.end >= todayISO)
+      .map(l => String(l.empId))
+  );
+
+  grid.innerHTML = '';
+  let inCount = 0;
+
+  employees.forEach(emp => {
+    const todayRecord = (records[emp.id] || {})[today] || {};
+    const isIn        = !!todayRecord.in;
+    const isOut       = !!todayRecord.out;
+    const isOnLeave   = onLeaveToday.has(String(emp.id));
+
+    if (isIn && !isOut) inCount++;
+
+    // アバター文字（苗字の頭文字）
+    const avatarChar = emp.name.charAt(0);
+
+    // ステータス
+    let statusClass = 'out-office';
+    let statusLabel = '未出勤';
+    if (isOnLeave) { statusClass = 'on-leave'; statusLabel = '休暇中'; }
+    else if (isIn && !isOut) { statusClass = 'in-office'; statusLabel = '出勤中'; }
+    else if (isOut)           { statusClass = 'out-office'; statusLabel = '退勤済'; }
+
+    // 労働時間計算（退勤済みの場合）
+    let workMin = 0;
+    let overtimeMin = 0;
+    if (isIn && isOut) {
+      workMin = diffMinutes(todayRecord.in, todayRecord.out);
+      const settings = getSettings();
+      const prescribed = (settings.workHoursPerDay || 8) * 60;
+      overtimeMin = Math.max(0, workMin - prescribed);
+    }
+
+    // カード生成
+    const card = document.createElement('div');
+    card.className = `emp-card ${isIn && !isOut ? 'status-in' : 'status-out'}`;
+    card.innerHTML = `
+      <div class="emp-header">
+        <div class="emp-avatar">${avatarChar}</div>
+        <div>
+          <div class="emp-name">${emp.name}</div>
+          <div class="emp-role">${emp.role}</div>
+        </div>
+        <span class="emp-status ${statusClass}">${statusLabel}</span>
+      </div>
+      <div class="emp-times">
+        <div class="emp-time-item">
+          <div class="emp-time-label">出勤時刻</div>
+          <div class="emp-time-val green">${isIn ? formatTime(todayRecord.in) : '--:--'}</div>
+        </div>
+        <div class="emp-time-item">
+          <div class="emp-time-label">退勤時刻</div>
+          <div class="emp-time-val coral">${isOut ? formatTime(todayRecord.out) : '--:--'}</div>
+        </div>
+        <div class="emp-time-item">
+          <div class="emp-time-label">労働時間</div>
+          <div class="emp-time-val">${workMin > 0 ? formatMinutes(workMin) : '--'}</div>
+        </div>
+      </div>
+      <div class="punch-buttons">
+        <button class="btn-punch btn-punch-in"
+          onclick="punch(${emp.id}, 'in')"
+          ${isIn || isOnLeave ? 'disabled' : ''}>
+          🟢 出勤
+        </button>
+        <button class="btn-punch btn-punch-out"
+          onclick="punch(${emp.id}, 'out')"
+          ${!isIn || isOut || isOnLeave ? 'disabled' : ''}>
+          🔴 退勤
+        </button>
+      </div>
+      ${overtimeMin > 0 ? `<div class="mt-8 text-muted" style="font-size:0.77rem; color:var(--coral);">⚠️ 残業 ${formatMinutes(overtimeMin)}</div>` : ''}
+    `;
+    grid.appendChild(card);
+  });
+
+  // 出勤人数更新
+  document.getElementById('attendanceCount').textContent = `${inCount} / ${employees.length} 名`;
+
+  // 打刻ログ更新
+  renderPunchLog(today);
+}
+
+// 打刻処理
+function punch(empId, type) {
+  const records = getPunchRecords();
+  const today   = dayjs().format('YYYY-MM-DD');
+  const now     = new Date().toISOString();
+
+  if (!records[empId]) records[empId] = {};
+  if (!records[empId][today]) records[empId][today] = {};
+
+  const todayRecord = records[empId][today];
+  const employees   = getEmployees();
+  const emp         = employees.find(e => e.id === empId);
+
+  // バリデーション：二重打刻チェック
+  if (type === 'in' && todayRecord.in) {
+    showToast(`${emp.name} さんはすでに出勤打刻済みです`, 'error');
+    return;
+  }
+  if (type === 'out' && todayRecord.out) {
+    showToast(`${emp.name} さんはすでに退勤打刻済みです`, 'error');
+    return;
+  }
+
+  // バリデーション：順序チェック（出勤前に退勤不可）
+  if (type === 'out' && !todayRecord.in) {
+    showToast(`${emp.name} さんはまだ出勤打刻がありません`, 'error');
+    return;
+  }
+
+  // 打刻記録
+  todayRecord[type] = now;
+  localStorage.setItem(STORAGE_KEYS.PUNCH_RECORDS, JSON.stringify(records));
+
+  const typeLabel = type === 'in' ? '出勤' : '退勤';
+  showToast(`${emp.name} さんの${typeLabel}打刻を記録しました（${formatTimeSec(now)}）`, 'success');
+
+  // 画面再描画
+  renderPunchTab();
+}
+
+// 打刻ログ描画
+function renderPunchLog(today) {
+  const records   = getPunchRecords();
+  const employees = getEmployees();
+  const log       = document.getElementById('punchLog');
+
+  // 本日のすべての打刻をフラット化して時系列順に並べる
+  const events = [];
+  employees.forEach(emp => {
+    const todayRecord = (records[emp.id] || {})[today] || {};
+    if (todayRecord.in)  events.push({ emp, type: 'in',  time: todayRecord.in });
+    if (todayRecord.out) events.push({ emp, type: 'out', time: todayRecord.out });
+  });
+  events.sort((a, b) => new Date(a.time) - new Date(b.time));
+
+  if (events.length === 0) {
+    log.innerHTML = '<div class="text-center text-muted" style="padding:20px;">本日の打刻記録はありません</div>';
+    return;
+  }
+
+  log.innerHTML = events.map(ev => `
+    <div class="punch-log-item">
+      <span class="punch-badge ${ev.type}">${ev.type === 'in' ? '出勤' : '退勤'}</span>
+      <span class="punch-log-name">${ev.emp.name}</span>
+      <span class="punch-log-date">${ev.emp.role}</span>
+      <span class="punch-log-time">${formatTimeSec(ev.time)}</span>
+    </div>
+  `).join('');
+}
+
+// ================================================
+// ===== タブ2：シフト管理 =====
+// ================================================
+
+// シフト管理の現在週オフセット（0=今週）
+let shiftWeekOffset = 0;
+
+// 対象週の開始日（月曜）を取得
+function getWeekStart(offset) {
+  const today = dayjs();
+  const monday = today.subtract(today.day() === 0 ? 6 : today.day() - 1, 'day');
+  return monday.add(offset * 7, 'day');
+}
+
+// シフトタブ描画
+function renderShiftTab() {
+  const weekStart  = getWeekStart(shiftWeekOffset);
+  const weekEnd    = weekStart.add(6, 'day');
+  const employees  = getEmployees();
+  const shifts     = getShifts();
+  const records    = getPunchRecords();
+
+  // 週ラベル
+  document.getElementById('shiftWeekLabel').textContent =
+    `${weekStart.format('YYYY年M月D日')}（月）〜 ${weekEnd.format('M月D日')}（日）`;
+
+  // 曜日ヘッダー（7日分）
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    days.push(weekStart.add(i, 'day'));
+  }
+
+  const table = document.getElementById('shiftTable');
+
+  // ヘッダー行
+  let thead = `<thead><tr><th class="name-col">氏名</th>`;
+  days.forEach(d => {
+    const wd = WEEKDAYS_JA[d.day()];
+    const isToday = d.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD');
+    const style = isToday ? 'background:var(--ocean-mid);' : '';
+    thead += `<th class="day-col" style="${style}">${d.format('M/D')}<br><small>（${wd}）</small></th>`;
+  });
+  thead += '</tr></thead>';
+
+  // 従業員行
+  let tbody = '<tbody>';
+  employees.forEach(emp => {
+    tbody += `<tr><td class="name-cell">${emp.name}</td>`;
+    days.forEach(d => {
+      const dateKey = d.format('YYYY-MM-DD');
+      const shiftKey = `${emp.id}_${dateKey}`;
+      const savedShift = (shifts[shiftKey] || '');
+
+      // 実績（当日の打刻データ）
+      const todayRec = (records[emp.id] || {})[dateKey] || {};
+      const hasActual = !!todayRec.in;
+      let deviationHtml = '';
+      if (savedShift && hasActual) {
+        // シフトと実績の照合
+        const shiftExpectedIn = getShiftStartTime(savedShift, dateKey);
+        if (shiftExpectedIn && todayRec.in) {
+          const diffMin = diffMinutes(shiftExpectedIn, todayRec.in);
+          if (Math.abs(diffMin) > 15) {
+            deviationHtml = `<div class="deviation-mismatch">！${diffMin > 0 ? '+' : ''}${diffMin}分</div>`;
+          } else {
+            deviationHtml = `<div class="deviation-match">✓ 予定通り</div>`;
+          }
+        }
+      } else if (hasActual) {
+        deviationHtml = `<div class="deviation-actual">実績: ${formatTime(todayRec.in)}</div>`;
+      }
+
+      tbody += `<td>
+        <select class="shift-select" data-key="${shiftKey}" data-val="${savedShift}"
+          onchange="onShiftSelectChange(this)">
+          ${SHIFT_PATTERNS.map(p => `<option value="${p}" ${p === savedShift ? 'selected' : ''}>${p || '未設定'}</option>`).join('')}
+        </select>
+        ${deviationHtml}
+      </td>`;
+    });
+    tbody += '</tr>';
+  });
+  tbody += '</tbody>';
+
+  table.innerHTML = thead + tbody;
+}
+
+// シフト開始時刻の取得（乖離計算用）
+function getShiftStartTime(shiftPattern, dateKey) {
+  const times = { '早番': '07:00', '日勤': '09:00', '遅番': '11:00' };
+  if (!times[shiftPattern]) return null;
+  return `${dateKey}T${times[shiftPattern]}:00`;
+}
+
+// シフトセレクト変更時の色更新
+function onShiftSelectChange(select) {
+  const val = select.value;
+  select.setAttribute('data-val', val);
+}
+
+// シフト保存
+function saveShifts() {
+  const shifts = getShifts();
+  document.querySelectorAll('.shift-select').forEach(sel => {
+    shifts[sel.dataset.key] = sel.value;
+  });
+  localStorage.setItem(STORAGE_KEYS.SHIFTS, JSON.stringify(shifts));
+  showToast('シフトを保存しました', 'success');
+}
+
+// 週ナビゲーション
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('shiftPrevWeek').addEventListener('click', () => {
+    shiftWeekOffset--;
+    renderShiftTab();
+  });
+  document.getElementById('shiftNextWeek').addEventListener('click', () => {
+    shiftWeekOffset++;
+    renderShiftTab();
+  });
+});
+
+// ================================================
+// ===== タブ3：月次レポート =====
+// ================================================
+
+// チャートインスタンス管理
+let barChartInst = null;
+let pieChartInst = null;
+let overtimeChartInst = null;
+
+// レポート描画メイン
+function renderReport() {
+  const employees  = getEmployees();
+  const records    = getPunchRecords();
+  const settings   = getSettings();
+  const prescribed = (settings.workHoursPerDay || 8) * 60; // 分
+
+  const monthInput = document.getElementById('reportMonth');
+  const empSelect  = document.getElementById('reportEmployee');
+
+  // 月を設定（未設定なら今月）
+  if (!monthInput.value) {
+    monthInput.value = dayjs().format('YYYY-MM');
+  }
+
+  // 従業員プルダウンを更新
+  const currentEmpVal = empSelect.value;
+  empSelect.innerHTML = '<option value="all">全員合算</option>' +
+    employees.map(e => `<option value="${e.id}" ${String(e.id) === currentEmpVal ? 'selected' : ''}>${e.name}</option>`).join('');
+
+  const targetMonth = monthInput.value; // YYYY-MM
+  const targetEmpId = empSelect.value;  // 'all' or empId
+
+  // 対象期間のレコードを収集
+  const rows = [];
+  const targetEmployees = targetEmpId === 'all' ? employees : employees.filter(e => String(e.id) === targetEmpId);
+
+  targetEmployees.forEach(emp => {
+    const empRecords = records[emp.id] || {};
+    Object.keys(empRecords).forEach(dateKey => {
+      if (!dateKey.startsWith(targetMonth)) return;
+      const rec = empRecords[dateKey];
+      if (!rec.in || !rec.out) return;
+      const workMin  = diffMinutes(rec.in, rec.out);
+      const overtime = Math.max(0, workMin - prescribed);
+      rows.push({ emp, dateKey, rec, workMin, overtime });
+    });
+  });
+
+  // 日付順にソート
+  rows.sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+
+  // サマリー計算
+  const totalWorkMin  = rows.reduce((s, r) => s + r.workMin, 0);
+  const totalOvertime = rows.reduce((s, r) => s + r.overtime, 0);
+  const workDays      = new Set(rows.map(r => r.dateKey)).size;
+
+  // サマリーカード描画
+  const summaryEl = document.getElementById('summaryCards');
+  summaryEl.innerHTML = `
+    <div class="summary-card highlight">
+      <div class="sc-label">出勤日数</div>
+      <div class="sc-value">${workDays}</div>
+      <div class="sc-unit">日</div>
+    </div>
+    <div class="summary-card">
+      <div class="sc-label">総労働時間</div>
+      <div class="sc-value">${Math.floor(totalWorkMin / 60)}</div>
+      <div class="sc-unit">時間 ${totalWorkMin % 60}分</div>
+    </div>
+    <div class="summary-card ${totalOvertime > 0 ? 'warn' : ''}">
+      <div class="sc-label">総残業時間</div>
+      <div class="sc-value">${Math.floor(totalOvertime / 60)}</div>
+      <div class="sc-unit">時間 ${totalOvertime % 60}分</div>
+    </div>
+    <div class="summary-card">
+      <div class="sc-label">平均日労働時間</div>
+      <div class="sc-value">${workDays > 0 ? (totalWorkMin / workDays / 60).toFixed(1) : '0.0'}</div>
+      <div class="sc-unit">時間/日</div>
+    </div>
+  `;
+
+  // 日別明細テーブル
+  const tbody = document.getElementById('reportTableBody');
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:20px;">データがありません</td></tr>';
+  } else {
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td>${formatDateJA(r.dateKey)}</td>
+        <td>${r.emp.name}</td>
+        <td>${formatTime(r.rec.in)}</td>
+        <td>${formatTime(r.rec.out)}</td>
+        <td>${formatMinutes(r.workMin)}</td>
+        <td class="${r.overtime > 0 ? 'overtime' : 'normal'}">${r.overtime > 0 ? formatMinutes(r.overtime) : '―'}</td>
+        <td>${r.overtime > 0 ? '残業あり' : '通常'}</td>
+      </tr>
+    `).join('');
+  }
+
+  // ===== 棒グラフ：日別労働時間 =====
+  // 対象月の日付リストを生成
+  const daysInMonth = dayjs(targetMonth + '-01').daysInMonth();
+  const dayLabels   = Array.from({ length: daysInMonth }, (_, i) => String(i + 1) + '日');
+  const dayWorkData = Array(daysInMonth).fill(0);
+  const dayOTData   = Array(daysInMonth).fill(0);
+
+  rows.forEach(r => {
+    const dayIdx = parseInt(r.dateKey.split('-')[2]) - 1;
+    dayWorkData[dayIdx] += r.workMin / 60;
+    dayOTData[dayIdx]   += r.overtime / 60;
+  });
+
+  if (barChartInst) barChartInst.destroy();
+  barChartInst = new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: {
+      labels: dayLabels,
+      datasets: [
+        {
+          label: '通常労働（時間）',
+          data: dayWorkData.map((v, i) => Math.max(0, v - dayOTData[i])),
+          backgroundColor: 'rgba(26,107,153,0.7)',
+          borderRadius: 3,
+        },
+        {
+          label: '残業（時間）',
+          data: dayOTData,
+          backgroundColor: 'rgba(232,80,58,0.75)',
+          borderRadius: 3,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { family: 'Noto Sans JP', size: 11 } } } },
+      scales: {
+        x: { stacked: true, ticks: { font: { size: 10 } } },
+        y: { stacked: true, title: { display: true, text: '時間', font: { size: 11 } } }
+      }
+    }
+  });
+
+  // ===== 円グラフ：内訳 =====
+  const normalMin = totalWorkMin - totalOvertime;
+  if (pieChartInst) pieChartInst.destroy();
+  pieChartInst = new Chart(document.getElementById('pieChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['通常労働', '残業'],
+      datasets: [{
+        data: [normalMin / 60, totalOvertime / 60],
+        backgroundColor: ['rgba(26,107,153,0.8)', 'rgba(232,80,58,0.8)'],
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '60%',
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { family: 'Noto Sans JP', size: 11 } } }
+      }
+    }
+  });
+
+  // ===== 横棒グラフ：従業員別残業累計 =====
+  const empOTMap = {};
+  employees.forEach(e => { empOTMap[e.id] = 0; });
+  rows.forEach(r => { empOTMap[r.emp.id] = (empOTMap[r.emp.id] || 0) + r.overtime; });
+
+  const empOTLabels = employees.map(e => e.name);
+  const empOTData   = employees.map(e => (empOTMap[e.id] || 0) / 60);
+
+  if (overtimeChartInst) overtimeChartInst.destroy();
+  overtimeChartInst = new Chart(document.getElementById('overtimeChart'), {
+    type: 'bar',
+    data: {
+      labels: empOTLabels,
+      datasets: [{
+        label: '残業時間（時間）',
+        data: empOTData,
+        backgroundColor: empOTData.map(v => v > 20 ? 'rgba(232,80,58,0.8)' : v > 10 ? 'rgba(217,119,6,0.8)' : 'rgba(26,107,153,0.7)'),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { title: { display: true, text: '残業時間（h）', font: { size: 11 } } },
+        y: { ticks: { font: { family: 'Noto Sans JP', size: 11 } } }
+      }
+    }
+  });
+}
+
+// ===== CSVエクスポート =====
+function exportCSV() {
+  const employees  = getEmployees();
+  const records    = getPunchRecords();
+  const settings   = getSettings();
+  const prescribed = (settings.workHoursPerDay || 8) * 60;
+  const monthInput = document.getElementById('reportMonth');
+  const targetMonth = monthInput.value || dayjs().format('YYYY-MM');
+
+  const rows = [['日付', '氏名', '役職', '出勤時刻', '退勤時刻', '労働時間(分)', '残業時間(分)', '備考']];
+
+  employees.forEach(emp => {
+    const empRecords = records[emp.id] || {};
+    Object.keys(empRecords).sort().forEach(dateKey => {
+      if (!dateKey.startsWith(targetMonth)) return;
+      const rec = empRecords[dateKey];
+      if (!rec.in || !rec.out) return;
+      const workMin  = diffMinutes(rec.in, rec.out);
+      const overtime = Math.max(0, workMin - prescribed);
+      rows.push([
+        formatDateJA(dateKey),
+        emp.name,
+        emp.role,
+        formatTime(rec.in),
+        formatTime(rec.out),
+        workMin,
+        overtime,
+        overtime > 0 ? '残業あり' : '通常',
+      ]);
+    });
+  });
+
+  // BOM付きUTF-8でCSV生成（Excelで文字化けしないよう対応）
+  const csv   = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const bom   = '\uFEFF';
+  const blob  = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+  const url   = URL.createObjectURL(blob);
+  const a     = document.createElement('a');
+  a.href      = url;
+  a.download  = `勤怠_${targetMonth}_${(settings.orgName || '熱海観光局')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSVをエクスポートしました', 'success');
+}
+
+// ================================================
+// ===== タブ4：設定・休暇 =====
+// ================================================
+
+// 設定タブ描画
+function renderSettingsTab() {
+  const settings  = getSettings();
+  const employees = getEmployees();
+
+  // 設定値を入力フィールドに反映
+  document.getElementById('orgName').value          = settings.orgName || '';
+  document.getElementById('workHoursPerDay').value  = settings.workHoursPerDay || 8;
+  document.getElementById('defaultStartTime').value = settings.defaultStartTime || '09:00';
+
+  // 従業員リスト管理
+  renderEmpListManage();
+
+  // 休暇テーブル
+  renderLeaveTable();
+
+  // 休暇申請：従業員プルダウン
+  const sel = document.getElementById('leaveEmpSelect');
+  sel.innerHTML = employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+
+  // 休暇申請ログ
+  renderLeaveLog();
+}
+
+// 従業員管理リスト描画
+function renderEmpListManage() {
+  const employees = getEmployees();
+  const container = document.getElementById('empListManage');
+  container.innerHTML = employees.map((emp, idx) => `
+    <div class="emp-list-item">
+      <div class="emp-avatar" style="width:32px;height:32px;font-size:0.9rem;">${emp.name.charAt(0)}</div>
+      <input type="text" value="${emp.name}" onchange="updateEmpName(${idx}, this.value)" placeholder="氏名">
+      <input type="text" value="${emp.role}" onchange="updateEmpRole(${idx}, this.value)" placeholder="役職" style="flex:1.2;">
+      <button class="btn-remove" onclick="removeEmployee(${idx})">✕</button>
+    </div>
+  `).join('');
+}
+
+// 従業員名変更
+function updateEmpName(idx, val) {
+  const employees = getEmployees();
+  if (employees[idx]) employees[idx].name = val;
+  localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
+}
+
+// 従業員役職変更
+function updateEmpRole(idx, val) {
+  const employees = getEmployees();
+  if (employees[idx]) employees[idx].role = val;
+  localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
+}
+
+// 従業員追加
+function addEmployee() {
+  const employees = getEmployees();
+  const newId = employees.length > 0 ? Math.max(...employees.map(e => e.id)) + 1 : 1;
+  employees.push({ id: newId, name: '新規スタッフ', role: '担当' });
+  localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
+  renderEmpListManage();
+}
+
+// 従業員削除
+function removeEmployee(idx) {
+  const employees = getEmployees();
+  if (employees.length <= 1) { showToast('従業員は1名以上必要です', 'error'); return; }
+  employees.splice(idx, 1);
+  localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
+  renderEmpListManage();
+  renderLeaveTable();
+}
+
+// 従業員保存
+function saveEmployees() {
+  // 入力フィールドの現在値を収集して保存
+  const employees = getEmployees();
+  const inputs = document.querySelectorAll('#empListManage .emp-list-item');
+  inputs.forEach((item, idx) => {
+    if (employees[idx]) {
+      const nameInput = item.querySelectorAll('input')[0];
+      const roleInput = item.querySelectorAll('input')[1];
+      if (nameInput) employees[idx].name = nameInput.value;
+      if (roleInput) employees[idx].role = roleInput.value;
+    }
+  });
+  localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
+  showToast('従業員情報を保存しました', 'success');
+  renderPunchTab();
+}
+
+// 基本設定保存
+function saveSettings() {
+  const settings = {
+    orgName: document.getElementById('orgName').value,
+    workHoursPerDay: parseFloat(document.getElementById('workHoursPerDay').value) || 8,
+    defaultStartTime: document.getElementById('defaultStartTime').value,
+  };
+  localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+  showToast('設定を保存しました', 'success');
+}
+
+// 休暇テーブル描画
+function renderLeaveTable() {
+  const employees = getEmployees();
+  const leaveData = getLeaveData();
+  const tbody = document.getElementById('leaveTableBody');
+
+  tbody.innerHTML = employees.map(emp => {
+    const ld   = leaveData[emp.id] || { paid: 20, special: 5 };
+    const pct  = Math.min(100, Math.round((ld.paid / 20) * 100));
+    const spct = Math.min(100, Math.round((ld.special / 5) * 100));
+    return `
+      <tr>
+        <td><strong>${emp.name}</strong><br><span class="text-muted">${emp.role}</span></td>
+        <td>
+          <input type="number" min="0" max="40" value="${ld.paid}"
+            onchange="updateLeave(${emp.id}, 'paid', this.value)"> 日
+        </td>
+        <td>
+          <input type="number" min="0" max="20" value="${ld.special}"
+            onchange="updateLeave(${emp.id}, 'special', this.value)"> 日
+        </td>
+        <td>
+          <div style="font-size:0.77rem; color:var(--stone-light); margin-bottom:4px;">有給 ${pct}%残存</div>
+          <div class="leave-bar"><div class="leave-bar-fill ${pct < 30 ? 'warn' : ''}" style="width:${pct}%"></div></div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// 休暇日数更新
+function updateLeave(empId, type, val) {
+  const leaveData = getLeaveData();
+  if (!leaveData[empId]) leaveData[empId] = { paid: 20, special: 5 };
+  leaveData[empId][type] = parseInt(val) || 0;
+  localStorage.setItem(STORAGE_KEYS.LEAVE_DATA, JSON.stringify(leaveData));
+}
+
+// 休暇日数保存
+function saveLeaveData() {
+  // 入力フィールドから現在値を収集
+  const employees = getEmployees();
+  const leaveData = getLeaveData();
+  const rows = document.querySelectorAll('#leaveTableBody tr');
+  rows.forEach((row, idx) => {
+    if (!employees[idx]) return;
+    const inputs = row.querySelectorAll('input[type="number"]');
+    if (inputs[0]) leaveData[employees[idx].id] = {
+      paid:    parseInt(inputs[0].value) || 0,
+      special: parseInt(inputs[1].value) || 0,
+    };
+  });
+  localStorage.setItem(STORAGE_KEYS.LEAVE_DATA, JSON.stringify(leaveData));
+  showToast('休暇情報を保存しました', 'success');
+  renderLeaveTable();
+}
+
+// 休暇申請処理
+function applyLeave() {
+  const empId    = parseInt(document.getElementById('leaveEmpSelect').value);
+  const type     = document.getElementById('leaveType').value;
+  const startStr = document.getElementById('leaveStart').value;
+  const endStr   = document.getElementById('leaveEnd').value;
+
+  if (!startStr || !endStr) {
+    showToast('開始日・終了日を入力してください', 'error');
+    return;
+  }
+  if (startStr > endStr) {
+    showToast('終了日は開始日以降にしてください', 'error');
+    return;
+  }
+
+  const employees = getEmployees();
+  const emp       = employees.find(e => e.id === empId);
+  const leaveData = getLeaveData();
+  const leaveLog  = getLeaveLog();
+
+  // 取得日数計算（土日を除く平日のみカウント）
+  let days = 0;
+  let cur  = dayjs(startStr);
+  const end = dayjs(endStr);
+  while (!cur.isAfter(end)) {
+    const wd = cur.day();
+    if (wd !== 0 && wd !== 6) days++;
+    cur = cur.add(1, 'day');
+  }
+  if (type === 'half') days = 0.5;
+
+  // 残日数チェック
+  if (!leaveData[empId]) leaveData[empId] = { paid: 20, special: 5 };
+  const key = type === 'paid' ? 'paid' : 'special';
+  if (leaveData[empId][key] < days) {
+    showToast(`${emp.name} さんの${type === 'paid' ? '有給' : '特別'}休暇残日数が不足しています（残${leaveData[empId][key]}日）`, 'error');
+    return;
+  }
+
+  // 残日数を減算
+  leaveData[empId][key] -= days;
+  localStorage.setItem(STORAGE_KEYS.LEAVE_DATA, JSON.stringify(leaveData));
+
+  // ログに追加
+  leaveLog.unshift({
+    empId,
+    empName: emp.name,
+    type,
+    start: startStr,
+    end:   endStr,
+    days,
+    appliedAt: new Date().toISOString(),
+  });
+  localStorage.setItem(STORAGE_KEYS.LEAVE_LOG, JSON.stringify(leaveLog));
+
+  showToast(`${emp.name} さんの${type === 'paid' ? '有給' : '特別'}休暇申請を登録しました（${days}日）`, 'success');
+  renderLeaveTable();
+  renderLeaveLog();
+}
+
+// 休暇ログ描画
+function renderLeaveLog() {
+  const leaveLog  = getLeaveLog();
+  const container = document.getElementById('leaveLog');
+  if (leaveLog.length === 0) {
+    container.innerHTML = '<div class="text-muted text-center" style="padding:16px;">申請履歴はありません</div>';
+    return;
+  }
+  container.innerHTML = leaveLog.slice(0, 20).map(log => {
+    const typeLabel = log.type === 'paid' ? '有給休暇' : '特別休暇';
+    return `
+      <div class="punch-log-item">
+        <span class="punch-badge in">${typeLabel}</span>
+        <span class="punch-log-name">${log.empName}</span>
+        <span class="punch-log-date">${log.start}〜${log.end}</span>
+        <span class="punch-log-time">${log.days}日</span>
+      </div>
+    `;
+  }).join('');
+}
+
+// ================================================
+// ===== アプリケーション初期化 =====
+// ================================================
+function init() {
+  // Day.js ロケール設定
+  dayjs.locale('ja');
+
+  // デフォルトデータ初期化
+  initDefaultData();
+
+  // タブ切り替え設定
+  initTabs();
+
+  // リアルタイム時計（1秒ごと更新）
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // 初期タブ描画（打刻タブ）
+  renderPunchTab();
+
+  // レポートの月選択デフォルト値を今月に設定
+  document.getElementById('reportMonth').value = dayjs().format('YYYY-MM');
+}
+
+// DOMロード完了後に初期化
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
